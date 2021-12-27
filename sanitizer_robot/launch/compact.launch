@@ -1,0 +1,7 @@
+<launch> 
+	<include file="$(find turtlebot3_big_house)/launch/turtlebot3_big_house.launch" />
+
+	<include file="$(find turtlebot3_navigation)/launch/turtlebot3_navigation.launch" >
+		<arg name="map_file" value="/home/fede/map.yaml" />
+	</include>
+</launch>
