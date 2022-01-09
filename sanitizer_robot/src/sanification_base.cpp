@@ -10,11 +10,14 @@
 #include <move_base_msgs/MoveBaseAction.h>
 #include <actionlib/client/simple_action_client.h>
 
+#include "std_srvs/Empty.h"
+
+
 #include "nav_msgs/Odometry.h"
 
 //#include "path_finder.h"
 #include "utility.h"
-#include "astar_search.h"
+
 
 using namespace std;
 using namespace cv;
@@ -115,14 +118,40 @@ int main(int argc, char** argv)
 
      ros::NodeHandle n;
      ros::Subscriber sub = n.subscribe("/odom", 1000, odomCallback);
+     ros::Publisher vel_pub = n.advertise<geometry_msgs::Twist>("cmd_vel", 1000);
 
-     //tell the action client that we want to spin a thread by default
-     MoveBaseClient ac("move_base", true); 
+     std::this_thread::sleep_for(1000ms);
+     ROS_INFO("Initial Localization started");
+
+     std_srvs::Empty empty_req;
+     ros::service::call("/global_localization", empty_req);
+
+     ros::Rate rate(10.0);
+
+     geometry_msgs::Twist cmd_speed;
+     cmd_speed.angular.z = 1;
+     int deltaT = 0;
+
+     while(ros::ok())
+     {
+         vel_pub.publish(cmd_speed);
+         rate.sleep();
+        
+        deltaT ++;
+
+        if(deltaT > 186)
+        {
+            cmd_speed.angular.z = 0;
+            vel_pub.publish(cmd_speed);
+            break;
+        }
+        
+     }
 
 /*** PLANNING MISSION ***/ 
 
      ROS_INFO("MISSION PLANNER \n");
-     ROS_INFO("Type 'load' to load already created mission");
+     ROS_INFO("Type 'load' to load already created mission or type 'new' to create a new one:\n");
 
      //Get Command
      string cmd;
@@ -131,11 +160,11 @@ int main(int argc, char** argv)
 
     if(cmd == "new"){
           plan_file = create_new_plan("map.pgm");
-          ROS_INFO("pianification finished");
+          ROS_INFO("New Plan File created\n");
     }
 
     else{
-        ROS_INFO("Type the name of the plan file you want to load\n");
+        ROS_INFO("Type the name of the plan file you want to load:\n");
         //Get File Name
         cin >> plan_file;
     }
@@ -180,37 +209,46 @@ for(int i=0; i<room_spec.size(); i++){
      cv::circle(map_resized, rooms_centre_grid[i], 2, CV_RGB(255,0,0));
 }
 
-namedWindow("Resized Map", WINDOW_NORMAL);
-imshow("Resized Map", map_resized);
+//namedWindow("Resized Map", WINDOW_NORMAL);
+//imshow("Resized Map", map_resized);
+
+ros::Rate loop_rate(10);
+int count = 0;
+while (ros::ok())
+  {
+    if(count == 20)
+        break;
+    ros::spinOnce();
+    loop_rate.sleep();
+    count ++;
+  }
 
 //Compute Source Point 
 Point2f src_point;
 src_point.x  =  turtle_odom.pose.pose.position.x;
 src_point.y = turtle_odom.pose.pose.position.x;
-Point2i src_resized = from_meters_to_pixel_coordinate(src_point,4);
-Pair src = make_pair(src_resized.x, src_resized.y);
 
-//Compute destination Points
-vector<Pair> dst_pair;
-for(int i=0; i<rooms_centre_grid.size(); i++){
-     dst_pair.push_back(make_pair(rooms_centre_grid[i].x, rooms_centre_grid[i].y));
-}
+vector<int> optimalSequence = compute_best_sequence(room_spec, src_point, grid);
 
-//Initialize the cost vector to go from source to destination
-vector<int> cost;
-//Compute cost
-for(int i = 0; i<dst_pair.size(); i++)
+std::cout << "\nThe optimal sequence of rooms is:" << endl;
+for(int k=0; k<room_spec.size(); k++)
 {
-     cost.push_back(aStarSearch(grid, src, dst_pair[i]));
-     cout << "cost["<<i<<"] = " << cost[i] << endl;
+    std::cout << "[" << optimalSequence[k] << "] ";
 }
+
+std::this_thread::sleep_for(10000ms);
 
 /***/
+
+//tell the action client that we want to spin a thread by default
+MoveBaseClient ac("move_base", true); 
 
 //wait for the action server to come up
 while(!ac.waitForServer(ros::Duration(5.0))){
 ROS_INFO("Waiting for the move_base action server to come up");
 }
+
+ROS_INFO("Starting Cleaning Sequence");
 
 for(int i=0; room_spec.size(); i++)
 {
