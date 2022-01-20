@@ -55,7 +55,7 @@ vector<room_t> Planner::getBestRoomSequence()
 {
     vector<room_t> orderedRooms;
 
-    Mat map = imread("/home/fede/sanitizer_ws/map.pgm");
+    Mat map = imread(map_name);
     Mat map_resized = discretize_map(map);
 
     //define grid, passed to Astar function
@@ -180,7 +180,7 @@ int Planner::init()
     //TODO: Check the result of the localization, if not ok repeat
 
     //Get rooms informations
-    room_spec = room_details_from_plan_file("/home/fede/sanitizer_ws/3RoomsTest.txt");
+    room_spec = room_details_from_plan_file(plan_file);
     if(room_spec.empty()){
         ROS_ERROR("Something went wrong while scanning the plan file");
         return -1;}
