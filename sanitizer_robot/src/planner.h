@@ -37,10 +37,10 @@ public:
         odom_sub = n.subscribe("/odom", 1000, &Planner::odomCallback, this);
         vel_pub = n.advertise<geometry_msgs::Twist>("cmd_vel", 1000);
 
-        n.getParam("map_name", map_name);
-        n.getParam("map_dimension_for_astar", map_dimension_astar);
-        n.getParam("vertex_per_room", vertex_per_room);
-        n.getParam("plan_file", plan_file);
+        n.getParam("/planner/map_name", map_name);
+        n.getParam("/plannermap_dimension_for_astar", map_dimension_astar);
+        n.getParam("/planner/vertex_per_room", vertex_per_room);
+        n.getParam("/planner/plan_file", plan_file);
 
         //spin the node in the background
         boost::thread spin_thread(&spinThread);
