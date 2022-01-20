@@ -8,12 +8,137 @@ using namespace std;
 using namespace cv;
 
 struct room_t {
-     cv::Point2f topLeft;
-     cv::Point2f topRight;
-     cv::Point2f bottomLeft;
-     cv::Point2f bottomRight;
-     cv::Point2f center;
+     vector<Point2f> vertices;
+     vector<vector<Point2f>> resizedVertices;
+     Point2f center;
      };
+
+
+vector<vector<Point2f>> vertices_smaller_rectangles(vector<Point2f> vertices_original, Point2f center){
+
+ROS_INFO("Computing sub rectagles");
+
+vector<vector<Point2f>> new_vertices;
+vector<Point2f> vertices_room;
+Point2f new_vertex;
+
+// definition of "perfect" concentric rectangles starting from the original vertex
+// furthest from the center of the room
+int i = 0;
+int k = 0;
+int j = 0;
+float temp_distance = 0;
+float max_distance = 0;
+float step_size = 0.75;
+
+for(i=0; i<vertices_original.size(); i++){
+	temp_distance = sqrt(pow(center.x - vertices_original[i].x,2) + pow(center.y - vertices_original[i].y,2));
+	if (temp_distance > max_distance){
+		max_distance = temp_distance;
+		j=i;
+	}
+}
+
+ROS_INFO(" max distance: %f, furthest vertex: %d", max_distance, j);
+
+// k number of concentric rectangles I'll create
+// if k = 0 no rectangles are created
+
+if (max_distance <= 1){
+	return{};
+}
+
+k = floor(max_distance/step_size);
+ROS_INFO("k:%d", k);
+
+ROS_INFO("furthest vertex (%f, %f)", vertices_original[j].x, vertices_original[j].y);
+
+for (i = 1; i <= k; i++){
+	
+     if(j ==0){
+		//new top left
+		new_vertex.x = vertices_original[j].x + i*(step_size*sqrt(2)/2);
+		new_vertex.y = vertices_original[j].y - i*(step_size*sqrt(2)/2);
+		vertices_room.push_back(new_vertex);
+		
+		//new top right
+		new_vertex.x = center.x + abs(center.x - new_vertex.x);
+		vertices_room.push_back(new_vertex);
+
+		//new bottom right
+		new_vertex.y = center.y - abs(center.y - new_vertex.y);
+		vertices_room.push_back(new_vertex);
+
+		//new bottom left
+		new_vertex.x = center.x - abs(center.x - new_vertex.x);
+		vertices_room.push_back(new_vertex);}
+
+	if(j==1){
+		//new top right
+		new_vertex.x = vertices_original[j].x - i*(step_size*sqrt(2)/2);
+		new_vertex.y = vertices_original[j].y - i*(step_size*sqrt(2)/2);
+		vertices_room.push_back(new_vertex);
+		
+		//new bottom right
+		new_vertex.y = center.y - abs(center.y - new_vertex.y);
+		vertices_room.push_back(new_vertex);
+
+		//new bottom left
+		new_vertex.x = center.x - abs(center.x - new_vertex.x);
+		vertices_room.push_back(new_vertex);
+
+		//new top left
+		new_vertex.y = center.y + abs(center.y - new_vertex.y);
+		vertices_room.insert(vertices_room.begin(), new_vertex);}
+	
+	if(j==2){
+		//new bottom right
+		new_vertex.x = vertices_original[j].x - i*(step_size*sqrt(2)/2);
+		new_vertex.y = vertices_original[j].y + i*(step_size*sqrt(2)/2);
+		vertices_room.push_back(new_vertex);
+
+		//new bottom left
+		new_vertex.x = center.x - abs(center.x - new_vertex.x);
+		vertices_room.push_back(new_vertex);
+
+		//new top left
+		new_vertex.y = center.y + abs(center.y - new_vertex.y);
+		vertices_room.insert(vertices_room.begin(), new_vertex);
+		
+		//new top right
+		new_vertex.x = center.x + abs(center.x - new_vertex.x);
+		vertices_room.insert(vertices_room.begin()+1, new_vertex);}
+	
+	if(j==3){
+		//new bottom left
+		new_vertex.x = vertices_original[j].x + i*(step_size*sqrt(2)/2);
+		new_vertex.y = vertices_original[j].y + i*(step_size*sqrt(2)/2);
+          vertices_room.push_back(new_vertex);
+		
+		//new top left
+		new_vertex.y = center.y + abs(center.y - new_vertex.y);
+		vertices_room.insert(vertices_room.begin(), new_vertex);
+          
+          //new top right
+		new_vertex.x = center.x + abs(center.x - new_vertex.x);
+		vertices_room.insert(vertices_room.begin()+1, new_vertex);
+	
+		//new bottom right
+		new_vertex.y = center.y - abs(center.y - new_vertex.y);
+		vertices_room.insert(vertices_room.begin()+2, new_vertex);}
+
+for(int kk=0; kk<vertices_room.size();kk++){
+     ROS_INFO("vertices %d (%f,%f)", kk , vertices_room[kk].x, vertices_room[kk].y);
+}
+
+new_vertices.push_back(vertices_room);
+vertices_room = vector<Point2f>();
+}
+
+
+return(new_vertices);
+
+}
 
 
 /*
@@ -31,6 +156,7 @@ vector<room_t> room_details_from_plan_file(string filePath)
 
      vector<room_t> room;
      room_t temp_room;
+     Point2f temp_point;
 
      int rooms_counters = 0;
      int vertex_counter = 0;
@@ -47,7 +173,7 @@ vector<room_t> room_details_from_plan_file(string filePath)
 
           if(getline(PlanFile,temp_x))
           {
-               getline(PlanFile,temp_y);
+               getline(PlanFile,temp_y); //The number of point is always even
           }
           else
           {
@@ -56,26 +182,9 @@ vector<room_t> room_details_from_plan_file(string filePath)
                break;
           }
 
-          switch(vertex_counter)
-          {
-               case 1:
-                    temp_room.topLeft.x = stof(temp_x);
-                    temp_room.topLeft.y = stof(temp_y);
-               break;
-
-               case 2:
-                    temp_room.topRight.x = stof(temp_x);
-                    temp_room.topRight.y = stof(temp_y);
-               break;               
-               case 3:
-                    temp_room.bottomLeft.x = stof(temp_x);
-                    temp_room.bottomLeft.y = stof(temp_y);
-               break; 
-               case 4:
-                    temp_room.bottomRight.x = stof(temp_x);
-                    temp_room.bottomRight.y = stof(temp_y);
-               break; 
-          }
+          temp_point.x = stof(temp_x);
+          temp_point.y = stof(temp_y);
+          temp_room.vertices.push_back(temp_point);          
 
           if(vertex_counter == 4)
           {
@@ -83,27 +192,47 @@ vector<room_t> room_details_from_plan_file(string filePath)
                vertex_counter=0;
 
                //compute room center
-               temp_room.center.x = (temp_room.topLeft.x + temp_room.topRight.x + temp_room.bottomLeft.x + temp_room.bottomRight.x)/4;
-               temp_room.center.y = (temp_room.topLeft.y + temp_room.topRight.y + temp_room.bottomLeft.y + temp_room.bottomRight.y)/4;
+               temp_room.center.x = (temp_room.vertices[0].x + temp_room.vertices[1].x + temp_room.vertices[2].x + temp_room.vertices[3].x)/4;
+               temp_room.center.y = (temp_room.vertices[0].y + temp_room.vertices[1].y + temp_room.vertices[2].y + temp_room.vertices[3].y)/4;
 
                room.push_back(temp_room);
+
+               temp_room.vertices = std::vector<Point2f>();
           }
      }
+
+for(int i=0; i<room.size(); i++)
+{
+room[i].resizedVertices = vertices_smaller_rectangles(room[i].vertices, room[i].center);  
+}
+
 return room;    
 }
 
 void print_rooms_spec(vector<room_t> rooms)
 {
+     cout << "The number of rooms is:" <<  rooms.size() << endl; 
+     
      for(int i=0; i < rooms.size(); i++)
      {
           cout << "--------------" << endl;
           cout << "ROOM" << i << endl;
           cout << "room center: "  << rooms[i].center << endl;
-          cout << "Top Left:" << rooms[i].topLeft << endl;
-          cout << "Top Right:" << rooms[i].topRight << endl;
-          cout << "Bottom Left:" << rooms[i].bottomLeft << endl;
-          cout << "Bottom Right:" << rooms[i].bottomRight << endl;
+          for(int j=0; j<4;j++)
+          {
+               cout << "Vertex "<< j << ":" << rooms[i].vertices[j] << endl;
+          }
      }
+/*
+     for(int k=0; k<rooms.size(); k++)
+     {
+          cout << "the number of resized vertices in room " << k << "is " << rooms[k].resizedVertices[0].size() << endl;
+          for(int p=0; p<rooms[k].resizedVertices[p].size(); p++)
+          {
+               ROS_INFO("Resized vertex %d: (%f,%f)", p , rooms[k].resizedVertices[k][p].x, rooms[k].resizedVertices[k][p].y) ;
+          }
+     }
+*/
 }
 
 
@@ -157,91 +286,6 @@ Mat discretize_map(Mat map)
      //imshow("discretized map window", map_resized);
 
      return map_resized;
-}
-
-/*
-@ Given the plan_file path and the number of setpoint in the path compute the rooms centre in [m] wrt the map centre
-*/
-vector<Point2i> compute_rooms_center(string plan_file, int setpoint_counter)
-{
-    ifstream MyFile(plan_file); //open the file where vertex coordinate are stored
-
-    //instantiate vector for rooms vertex and center
-     vector<Point2i> rooms_centre;
-     vector<Point2i> rooms_vertex;
-     int rooms_counters = 0;
-     int vertex_counter = 0;
-
-    //string to save what we read from file 
-     std::string k;
-
-     for(int i = 0; i < setpoint_counter; i++)
-     {
-          vertex_counter++; //increment vertex counter once for evry loop
-
-          Point2i new_vertex; //instantiate new empty vertex
-
-          //get vertex coordinate from file and save them in the empty vertex
-          getline(MyFile,k);
-          new_vertex.x = stof(k);
-          getline(MyFile,k);
-          new_vertex.y = stof(k);
-
-          rooms_vertex.push_back(new_vertex);
-
-        //every four vertex a room is created --> compute room center
-          if(vertex_counter % 4 == 0)
-          {
-              Point2i new_centre;
-              new_centre.x = 0;
-              new_centre.y = 0;
-
-              for(int j = vertex_counter-4; j < vertex_counter; j++ )
-               {
-                    new_centre.x = new_centre.x + rooms_vertex[j].x;
-                    new_centre.y = new_centre.y + rooms_vertex[j].y;
-               }
-
-               new_centre.x = new_centre.x/4;
-               new_centre.y = new_centre.y/4;
-
-               rooms_centre.push_back(new_centre);
-
-               rooms_counters++; //keep track of the number of rooms that we want to clean
-          }
-     }   
-     
-     cout << "Room1 center:" << rooms_centre[0] << endl;
-     cout << "Room2 center:" << rooms_centre[1] << endl;
-
-
-     cout << "the number of rooms is:" << rooms_counters << endl;
-
-     if(rooms_counters > 0) 
-        return rooms_centre;
-
-    else
-        return {};
-
-}
-
-/*
-@Print matrix with pixel value from grayscale image
-*/
-void print_mat(Mat mat, int prec)
-{
-     for(int i =0; i< mat.size().height; i++)
-     {
-          cout<<"[";
-          for(int j =0; j< mat.size().width;j++)
-          {
-               cout << setprecision(prec) << mat.at<char>(i,j);
-               if(j != mat.size().width-1)
-                    cout << ",";
-               else 
-                    cout<<"]" << endl;
-          }
-     }
 }
 
 /*

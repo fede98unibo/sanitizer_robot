@@ -4,4 +4,12 @@
 	<include file="$(find turtlebot3_navigation)/launch/turtlebot3_navigation.launch" >
 		<arg name="map_file" value="/home/fede/map.yaml" />
 	</include>
+
+	<group ns = "planner" >
+		<rosparam command="load" file = "$(find sanitizer_robot)/config/planner_params.yaml" />
+	</group>
+
+	 	
+	<node pkg="sanitizer_robot" name="planner" type="planner" output = "screen" />
+	
 </launch>

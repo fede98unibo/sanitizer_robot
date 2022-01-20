@@ -1,0 +1,9 @@
+#Parameters used by the path planner
+
+map_name: "map.pgm"
+map_dimension_for_astar: 96
+
+plan_file: "3RoomsTest.txt"
+
+vertex_per_room: 4
+

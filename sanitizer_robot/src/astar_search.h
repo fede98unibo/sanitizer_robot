@@ -86,7 +86,7 @@ int tracePath(cell cellDetails[][COL], Pair dest)
     while (!Path.empty()) {
         pair<int, int> p = Path.top();
         Path.pop();
-        printf("-> (%d,%d) ", p.first, p.second);
+        //printf("-> (%d,%d) ", p.first, p.second);
         path_cost +=1;
     }
  

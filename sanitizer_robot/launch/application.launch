@@ -1,0 +1,3 @@
+<launch> 	
+	<node pkg="sanitizer_robot" name="planner" type="planner" output = "screen" />
+</launch>
