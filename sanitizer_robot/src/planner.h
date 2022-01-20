@@ -38,7 +38,7 @@ public:
         vel_pub = n.advertise<geometry_msgs::Twist>("cmd_vel", 1000);
 
         n.getParam("/planner/map_name", map_name);
-        n.getParam("/plannermap_dimension_for_astar", map_dimension_astar);
+        n.getParam("/planner/map_dimension_for_astar", map_dimension_astar);
         n.getParam("/planner/vertex_per_room", vertex_per_room);
         n.getParam("/planner/plan_file", plan_file);
 
