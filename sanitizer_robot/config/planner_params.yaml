@@ -1,9 +1,9 @@
 #Parameters used by the path planner
 
-map_name: "map.pgm"
-map_dimension_for_astar: 96
+map_name: "/home/fede/sanitizer_ws/map.pgm"
+plan_file: "/home/fede/sanitizer_ws/3RoomsTest.txt"
 
-plan_file: "3RoomsTest.txt"
+map_dimension_for_astar: 96
 
 vertex_per_room: 4
 
